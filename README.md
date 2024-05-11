@@ -1,1 +1,1 @@
-# SMT-Data-Challenge-2024
+# SMT Data Challenge 2024
