@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-model = joblib.load('pitcher_classifier_model.pkl')
+model = joblib.load('pitcher_classifier_model.joblib')
 
 def calculate_muscle_fatigue(total_pitches, pace, games_played):
     return (0.10963 + 0.032 * total_pitches - 0.0023 * pace) / games_played
