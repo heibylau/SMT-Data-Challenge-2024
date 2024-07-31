@@ -4,9 +4,24 @@ from dash.dependencies import Input, Output
 import pandas as pd
 import pickle
 import dash_bootstrap_components as dbc
+import plotly.express as px
+import plotly.graph_objects as go
 
+# Load model
 pickle_in = open('pitcher_classifier_model.pkl', 'rb')
 model = pickle.load(pickle_in)
+
+# Load scatter plot data
+season_df = pd.read_csv('season_metrics.csv')
+
+# Mapping numeric clusters to descriptions
+cluster_description = {
+    0: "Versatile Pitcher",
+    1: "Middle Reliever",
+    2: "Starting Pitcher",
+    3: "Closer"
+}
+season_df['cluster_desc'] = season_df['cluster'].map(cluster_description)
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True)
 
@@ -68,15 +83,21 @@ def serve_pitcher_classifier_page():
             dcc.Input(id='muscle_fatigue_predict', type='number', placeholder='Muscle Fatigue', style={"width": "100%", "margin-bottom": "10px"}),
             dcc.Input(id='games_played_predict', type='number', placeholder='Games Played', style={"width": "100%", "margin-bottom": "10px"}),
             dcc.Input(id='total_pitches_predict', type='number', placeholder='Total Pitches', style={"width": "100%", "margin-bottom": "10px"}),
-            html.Button('Predict Cluster', id='predict_button', style={"width": "100%", "margin-top": "10px"}),
             html.Div(id='cluster_prediction', style={"margin-top": "10px"})
-        ], style={'width': '30%', 'display': 'inline-block', 'vertical-align': 'top', 'padding': '10px'})
+        ], style={'width': '30%', 'display': 'inline-block', 'vertical-align': 'top', 'padding': '10px'}),
+
+        # Scatter Plots
+        html.Div([
+            dcc.Graph(id='scatter_plot_1'),
+            dcc.Graph(id='scatter_plot_2'),
+            dcc.Graph(id='scatter_plot_3')
+        ], style={"padding": "20px"})
     ], style={"padding": "20px"})
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     navbar,
-    html.Div(id='page-content', style={"padding": "20px"})
+    html.Div(id='page-content', style={"padding": "20px"}),
 ])
 
 @app.callback(
@@ -131,15 +152,16 @@ def update_fatigue_units(whip, bb_ip, k_ip, batters_ip, ip, starting, relieving)
 
 @app.callback(
     Output('cluster_prediction', 'children'),
-    Input('predict_button', 'n_clicks'),
-    Input('average_rest_days', 'value'),
-    Input('fatigue_units_predict', 'value'),
-    Input('muscle_fatigue_predict', 'value'),
-    Input('games_played_predict', 'value'),
-    Input('total_pitches_predict', 'value')
+    [
+        Input('average_rest_days', 'value'),
+        Input('fatigue_units_predict', 'value'),
+        Input('muscle_fatigue_predict', 'value'),
+        Input('games_played_predict', 'value'),
+        Input('total_pitches_predict', 'value')
+    ]
 )
-def predict_pitcher_cluster(n_clicks, average_rest_days, fatigue_units, muscle_fatigue, games_played, total_pitches):
-    if n_clicks is not None:
+def predict_pitcher_cluster(average_rest_days, fatigue_units, muscle_fatigue, games_played, total_pitches):
+    if all([average_rest_days, fatigue_units, muscle_fatigue, games_played, total_pitches]):
         input_data = pd.DataFrame({
             'average_rest_days': [average_rest_days],
             'fatigue_units': [fatigue_units],
@@ -147,16 +169,92 @@ def predict_pitcher_cluster(n_clicks, average_rest_days, fatigue_units, muscle_f
             'games_played': [games_played],
             'total_pitches': [total_pitches]
         })
-        cluster_description = {
-            0: "Versatile Pitcher",
-            1: "Middle Reliever",
-            2: "Starting Pitcher",
-            3: "Closer"
-        }
-        cluster = model.predict(input_data)[0]
-        predicted_cluster = cluster_description.get(cluster, "Unknown")
-        return f"The predicted cluster is: {predicted_cluster}"
+        try:
+            cluster = model.predict(input_data)[0]
+            predicted_cluster = cluster_description.get(cluster, "Unknown")
+            return f"The predicted cluster is: {predicted_cluster}"
+        except Exception as e:
+            return f"Error during prediction: {e}"
     return ""
+
+@app.callback(
+    [Output('scatter_plot_1', 'figure'),
+     Output('scatter_plot_2', 'figure'),
+     Output('scatter_plot_3', 'figure')],
+    [
+        Input('average_rest_days', 'value'),
+        Input('fatigue_units_predict', 'value'),
+        Input('muscle_fatigue_predict', 'value'),
+        Input('games_played_predict', 'value'),
+        Input('total_pitches_predict', 'value')
+    ]
+)
+def update_scatter_plots(average_rest_days, fatigue_units, muscle_fatigue, games_played, total_pitches):
+    # Plot 1: Fatigue Units vs. Average Muscle Fatigue
+    fig1 = px.scatter(
+        season_df, x='fatigue_units', y='average_muscle_fatigue',
+        color='cluster_desc',
+        color_discrete_map={"Versatile Pitcher": "blue", "Middle Reliever": "orange", "Starting Pitcher": "green", "Closer": "red"},
+        labels={'cluster_desc': 'Cluster'},
+        title='Fatigue Units vs. Average Muscle Fatigue'
+    )
+
+    # Plot 2: Games Played vs. Total Pitches
+    fig2 = px.scatter(
+        season_df, x='games_played', y='total_pitches',
+        color='cluster_desc',
+        color_discrete_map={"Versatile Pitcher": "blue", "Middle Reliever": "orange", "Starting Pitcher": "green", "Closer": "red"},
+        labels={'cluster_desc': 'Cluster'},
+        title='Games Played vs. Total Pitches'
+    )
+
+    # Plot 3: Average Rest Days vs. Fatigue Units
+    fig3 = px.scatter(
+        season_df, x='average_rest_days', y='fatigue_units',
+        color='cluster_desc',
+        color_discrete_map={"Versatile Pitcher": "blue", "Middle Reliever": "orange", "Starting Pitcher": "green", "Closer": "red"},
+        labels={'cluster_desc': 'Cluster'},
+        title='Average Rest Days vs. Fatigue Units'
+    )
+
+    # Add predicted point to the plots if inputs are provided
+    if all([average_rest_days, fatigue_units, muscle_fatigue, games_played, total_pitches]):
+        input_data = pd.DataFrame({
+            'average_rest_days': [average_rest_days],
+            'fatigue_units': [fatigue_units],
+            'average_muscle_fatigue': [muscle_fatigue],
+            'games_played': [games_played],
+            'total_pitches': [total_pitches]
+        })
+        
+        try:
+            cluster = model.predict(input_data)[0]
+            predicted_cluster = cluster_description.get(cluster, "Unknown")
+
+            fig1.add_trace(go.Scatter(
+                x=[fatigue_units], y=[muscle_fatigue],
+                mode='markers',
+                marker=dict(size=10, color='purple', symbol='x'),
+                name=f'Predicted: {predicted_cluster}'
+            ))
+
+            fig2.add_trace(go.Scatter(
+                x=[games_played], y=[total_pitches],
+                mode='markers',
+                marker=dict(size=10, color='purple', symbol='x'),
+                name=f'Predicted: {predicted_cluster}'
+            ))
+
+            fig3.add_trace(go.Scatter(
+                x=[average_rest_days], y=[fatigue_units],
+                mode='markers',
+                marker=dict(size=10, color='purple', symbol='x'),
+                name=f'Predicted: {predicted_cluster}'
+            ))
+        except Exception as e:
+            print(f"Error during plot update: {e}")
+
+    return fig1, fig2, fig3
 
 if __name__ == '__main__':
     app.run_server(debug=True)
