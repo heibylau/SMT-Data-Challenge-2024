@@ -8,15 +8,15 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # Load model
-pickle_in = open('pitcher_classifier_model.pkl', 'rb')
+pickle_in = open('UImodel.pkl', 'rb')
 model = pickle.load(pickle_in)
 
 # Load scatter plot data
-season_df = pd.read_csv('season_metrics.csv')
+season_df = pd.read_csv('UIdata.csv')
 
 # Mapping numeric clusters to descriptions
 cluster_description = {
-    0: "Versatile Pitcher",
+    0: "Versatile Reliever",
     1: "Middle Reliever",
     2: "Starting Pitcher",
     3: "Closer"
@@ -43,10 +43,10 @@ navbar = dbc.Navbar(
 def serve_home_page():
     return html.Div([
         html.H1("Pitcher Cluster Model", style={"text-align": "center"}),
-        html.P("This application predicts the pitcher cluster based on various input parameters.",
+        html.P("This application categorizes pitchers into four clusters (Versatile Reliever, Middle Reliever, Starting Pitcher, and Closer) based on various fatigue, endurance, and recovery metrics.",
                style={"text-align": "center"}),
-        html.P("The model uses machine learning to categorize pitchers into four clusters: Versatile Pitcher, "
-               "Middle Reliever, Starting Pitcher, and Closer.", style={"text-align": "center"}),
+        html.P("Calculators are provided for users to calculate the fatigue unit and average muscle fatigue for each pitcher. In addition, scatterplots are created to show direct comparison "
+               "between the pitcher used as the input and the pitchers used in the classifier model.", style={"text-align": "center"}),
     ], style={"padding": "40px"})
 
 def serve_pitcher_classifier_page():
@@ -110,7 +110,7 @@ def display_page(pathname):
     elif pathname == '/pitcher_classifier':
         return serve_pitcher_classifier_page()
     else:
-        return serve_home_page()  # Redirect to home page for unknown URLs
+        return serve_home_page()  
 
 @app.callback(
     Output('muscle_fatigue_output', 'children'),
@@ -194,7 +194,7 @@ def update_scatter_plots(average_rest_days, fatigue_units, muscle_fatigue, games
     fig1 = px.scatter(
         season_df, x='fatigue_units', y='average_muscle_fatigue',
         color='cluster_desc',
-        color_discrete_map={"Versatile Pitcher": "blue", "Middle Reliever": "orange", "Starting Pitcher": "green", "Closer": "red"},
+        color_discrete_map={"Versatile Reliever": "blue", "Middle Reliever": "orange", "Starting Pitcher": "green", "Closer": "red"},
         labels={'cluster_desc': 'Cluster'},
         title='Fatigue Units vs. Average Muscle Fatigue'
     )
@@ -203,7 +203,7 @@ def update_scatter_plots(average_rest_days, fatigue_units, muscle_fatigue, games
     fig2 = px.scatter(
         season_df, x='games_played', y='total_pitches',
         color='cluster_desc',
-        color_discrete_map={"Versatile Pitcher": "blue", "Middle Reliever": "orange", "Starting Pitcher": "green", "Closer": "red"},
+        color_discrete_map={"Versatile Reliever": "blue", "Middle Reliever": "orange", "Starting Pitcher": "green", "Closer": "red"},
         labels={'cluster_desc': 'Cluster'},
         title='Games Played vs. Total Pitches'
     )
@@ -212,7 +212,7 @@ def update_scatter_plots(average_rest_days, fatigue_units, muscle_fatigue, games
     fig3 = px.scatter(
         season_df, x='average_rest_days', y='fatigue_units',
         color='cluster_desc',
-        color_discrete_map={"Versatile Pitcher": "blue", "Middle Reliever": "orange", "Starting Pitcher": "green", "Closer": "red"},
+        color_discrete_map={"Versatile Reliever": "blue", "Middle Reliever": "orange", "Starting Pitcher": "green", "Closer": "red"},
         labels={'cluster_desc': 'Cluster'},
         title='Average Rest Days vs. Fatigue Units'
     )
